@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Kiosk Calendar</title>
+<style>
+  :root {
+    --bg: #101827;
+    --panel: #182337;
+    --panel2: #202f48;
+    --text: #f5f7fb;
+    --muted: #9eabc1;
+    --accent: #64d2ff;
+    --today: #2d8cff;
+    --event: #f7b955;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+
+  .dashboard {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 34% 66%;
+    gap: 18px;
+    padding: 22px;
+  }
+
+  .left, .right {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .card {
+    background: var(--panel);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.18);
+  }
+
+  .clock-card {
+    flex: 0 0 43%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .time {
+    font-size: clamp(58px, 9vw, 120px);
+    line-height: .95;
+    letter-spacing: -4px;
+    font-weight: 700;
+  }
+
+  .ampm {
+    color: var(--accent);
+    font-size: clamp(22px, 3vw, 42px);
+    font-weight: 600;
+    margin-top: 12px;
+  }
+
+  .date {
+    color: var(--muted);
+    font-size: clamp(20px, 2vw, 30px);
+    margin-top: 24px;
+  }
+
+  .upcoming {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .section-title {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+
+  .event {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+
+  .event:last-child { border-bottom: 0; }
+
+  .event-dot {
+    width: 12px;
+    height: 42px;
+    border-radius: 8px;
+    background: var(--event);
+  }
+
+  .event-name { font-size: 19px; font-weight: 600; }
+  .event-time { color: var(--muted); margin-top: 5px; font-size: 15px; }
+
+  .calendar-card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .month {
+    font-size: clamp(26px, 3vw, 42px);
+    font-weight: 700;
+  }
+
+  button {
+    border: 0;
+    color: var(--text);
+    background: var(--panel2);
+    border-radius: 14px;
+    min-width: 48px;
+    min-height: 44px;
+    font-size: 25px;
+    cursor: pointer;
+  }
+
+  button:active { transform: scale(.96); }
+
+  .controls {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+  }
+
+  .today-btn {
+    font-size: 14px;
+    padding: 0 14px;
+    color: var(--accent);
+  }
+
+  .weekdays, .days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+
+  .weekdays {
+    color: var(--muted);
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .days {
+    flex: 1;
+    grid-auto-rows: 1fr;
+  }
+
+  .day {
+    position: relative;
+    min-height: 64px;
+    border-radius: 16px;
+    padding: 12px;
+    background: rgba(255,255,255,.035);
+    font-size: clamp(17px, 2vw, 26px);
+  }
+
+  .day.empty { background: transparent; }
+
+  .day.today {
+    background: var(--today);
+    font-weight: 700;
+  }
+
+  .day.has-event::after {
+    content: "";
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    transform: translateX(-50%);
+    background: var(--event);
+    border-radius: 50%;
+  }
+
+  .day.today.has-event::after { background: white; }
+
+  .footer {
+    color: var(--muted);
+    text-align: right;
+    font-size: 13px;
+    margin-top: 14px;
+  }
+
+  @media (max-width: 700px) {
+    body { overflow: auto; }
+    .dashboard {
+      height: auto;
+      min-height: 100vh;
+      grid-template-columns: 1fr;
+      padding: 12px;
+    }
+    .clock-card { min-height: 300px; }
+    .calendar-card { min-height: 560px; }
+  }
+</style>
+</head>
+<body>
+  <main class="dashboard">
+    <section class="left">
+      <div class="card clock-card">
+        <div id="time" class="time">--:--</div>
+        <div id="ampm" class="ampm"></div>
+        <div id="date" class="date"></div>
+      </div>
+
+      <div class="card upcoming">
+        <div class="section-title">Today's schedule</div>
+        <div id="events"></div>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="card calendar-card">
+        <div class="calendar-header">
+          <div id="month" class="month"></div>
+          <div class="controls">
+            <button onclick="changeMonth(-1)" aria-label="Previous month">‹</button>
+            <button class="today-btn" onclick="goToday()">Today</button>
+            <button onclick="changeMonth(1)" aria-label="Next month">›</button>
+          </div>
+        </div>
+
+        <div class="weekdays">
+          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
+          <div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+
+        <div id="days" class="days"></div>
+        <div class="footer">Tap the arrows to browse months</div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  const today = new Date();
+  let viewedMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const sampleEvents = [
+    { date: new Date(today.getFullYear(), today.getMonth(), today.getDate()), time: "3:30 PM", name: "School pickup" },
+    { date: new Date(today.getFullYear(), today.getMonth(), today.getDate()), time: "6:00 PM", name: "Family dinner" },
+    { date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1), time: "9:00 AM", name: "Team meeting" }
+  ];
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+
+  function updateClock() {
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+
+    document.getElementById("time").textContent =
+      `${hours}:${minutes}:${seconds}`;
+    document.getElementById("ampm").textContent = ampm;
+    document.getElementById("date").textContent =
+      now.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+      });
+  }
+
+  function renderCalendar() {
+    const year = viewedMonth.getFullYear();
+    const month = viewedMonth.getMonth();
+
+    document.getElementById("month").textContent =
+      viewedMonth.toLocaleDateString(undefined, {
+        month: "long",
+        year: "numeric"
+      });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const container = document.getElementById("days");
+    container.innerHTML = "";
+
+    for (let i = 0; i < firstDay; i++) {
+      const blank = document.createElement("div");
+      blank.className = "day empty";
+      container.appendChild(blank);
+    }
+
+    for (let dayNumber = 1; dayNumber <= daysInMonth; dayNumber++) {
+      const date = new Date(year, month, dayNumber);
+      const cell = document.createElement("div");
+      cell.className = "day";
+      cell.textContent = dayNumber;
+
+      if (sameDay(date, today)) cell.classList.add("today");
+      if (sampleEvents.some(event => sameDay(event.date, date))) {
+        cell.classList.add("has-event");
+      }
+
+      container.appendChild(cell);
+    }
+  }
+
+  function renderEvents() {
+    const todayEvents = sampleEvents.filter(event => sameDay(event.date, today));
+    const container = document.getElementById("events");
+
+    if (!todayEvents.length) {
+      container.innerHTML = '<div style="color:var(--muted)">No events scheduled.</div>';
+      return;
+    }
+
+    container.innerHTML = todayEvents.map(event => `
+      <div class="event">
+        <div class="event-dot"></div>
+        <div>
+          <div class="event-name">${event.name}</div>
+          <div class="event-time">${event.time}</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function changeMonth(amount) {
+    viewedMonth = new Date(
+      viewedMonth.getFullYear(),
+      viewedMonth.getMonth() + amount,
+      1
+    );
+    renderCalendar();
+  }
+
+  function goToday() {
+    viewedMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    renderCalendar();
+  }
+
+  updateClock();
+  renderCalendar();
+  renderEvents();
+  setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
